@@ -8,7 +8,7 @@ import { parseCookies } from 'oslo/cookie';
 
 /**
  * @module
- * @name supabase-auth-helper
+ * @name @butttons/supabase-auth-helper
  * @description A utility to work with Supabase Auth.
  */
 
@@ -143,7 +143,7 @@ export class SupabaseAuthHelper {
    * @example
    *
    * ```ts
-   * const result = await authenticateTokenSafely(token);
+   * const result = await supabaseHelper.authenticateTokenSafely(token);
    *
    * if (result.type === 'error') {
    *  console.error('Could not verify token', result.error);
@@ -154,7 +154,6 @@ export class SupabaseAuthHelper {
    *
    * ```
    */
-
   public authenticateTokenSafely = async (
     token: string,
   ): Promise<SafeResponse<SupabaseTokenUser & JWTPayload>> => {
@@ -171,7 +170,6 @@ export class SupabaseAuthHelper {
    * @param req Request
    * @returns The token payload or null if the token is invalid.
    */
-
   public getTokenPayload = async (
     req: Request,
   ): Promise<(SupabaseTokenUser & JWTPayload) | null> => {
