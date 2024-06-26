@@ -1,0 +1,22 @@
+{
+  "name": "@butttons/supabase-auth-helpers",
+  "version": "0.1.0",
+  "description": "",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "supabase",
+    "supabase-auth"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.44.0"
+  },
+  "dependencies": {
+    "jose": "^5.4.1",
+    "oslo": "^1.2.0"
+  }
+}
