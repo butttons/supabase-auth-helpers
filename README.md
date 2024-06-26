@@ -12,7 +12,7 @@ A collection of auth related helpers to be used with supabase auth.
 
 ```ts
 // file: src/lib/supabase-auth-helper.ts
-import SupabaseAuthHelpers from '@butttons/supabase-auth-helpers';
+import { SupabaseAuthHelper } from '@butttons/supabase-auth-helpers';
 
 export const supabaseAuthHelper = new SupabaseAuthHelper({
   supabaseId: 'your-supabase-id',
@@ -28,7 +28,7 @@ Middleware
 ```ts
 // file: src/middleware.ts
 import { NextResponse } from 'next/server';
-import SupabaseAuthHelpers from '@butttons/supabase-auth-helpers';
+import { SupabaseAuthHelper } from '@butttons/supabase-auth-helpers';
 
 export async function middleware(req: NextRequest) {
   const { getTokenPayload } = new SupabaseAuthHelper({

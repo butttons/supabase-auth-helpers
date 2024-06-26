@@ -7,9 +7,15 @@ import { type JWTPayload, jwtVerify } from 'jose';
 import { parseCookies } from 'oslo/cookie';
 
 /**
+ * @module
+ * @name supabase-auth-helper
+ * @description A utility to work with Supabase Auth.
+ */
+
+/**
  * Options for the `SupabaseAuthHelper` class.
  */
-type SupabaseAuthHelperOptions = {
+export type SupabaseAuthHelperOptions = {
   /**
    * The Supabase project ID
    */
@@ -27,7 +33,7 @@ type SupabaseAuthHelperOptions = {
 /**
  * A simple user object in the JWT payload. This is safer than `getSession().session.user`.
  */
-type SupabaseTokenUser = {
+export type SupabaseTokenUser = {
   id: string;
   email: string;
   phone: string;
@@ -45,7 +51,6 @@ type SafeResponse<T> =
 /**
  * A helper utility to work with Supabase Auth.
  * Provides methods to get the session, authenticate tokens, and get the user object from the token.
- * @module
  *
  * @example
  *
@@ -60,7 +65,7 @@ type SafeResponse<T> =
  *
  * ```
  */
-class SupabaseAuthHelper {
+export class SupabaseAuthHelper {
   public options: SupabaseAuthHelperOptions;
 
   constructor(options: SupabaseAuthHelperOptions) {
@@ -183,5 +188,3 @@ class SupabaseAuthHelper {
     return result.payload;
   };
 }
-
-export default SupabaseAuthHelper;
