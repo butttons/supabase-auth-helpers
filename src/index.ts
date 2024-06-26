@@ -39,19 +39,18 @@ type SafeResponse<T> =
   | { type: 'success'; payload: T }
   | { type: 'error'; error: unknown };
 
-/**
- * A collection of server side helpers to work with Supabase Auth.
- *
- * @param options
- * @returns
- */
+class SupabaseAuthHelper {
+  public options: SupabaseAuthHelperOptions;
 
-const createSupabaseAuthHelpers = (options: SupabaseAuthHelperOptions) => {
-  const decodeAuthCookie = (cookies: Map<string, string>) => {
+  constructor(options: SupabaseAuthHelperOptions) {
+    this.options = options;
+  }
+
+  private decodeAuthCookie = (cookies: Map<string, string>): Session | null => {
     const supabaseCookie = Array.from(cookies.entries())
       .sort(([a, b]) => a[0].localeCompare(b[0]))
       .reduce((acc, [name, value]) => {
-        if (name.includes(`${options.supabaseId}-auth-token.`)) {
+        if (name.includes(`${this.options.supabaseId}-auth-token.`)) {
           acc += value;
         }
         return acc;
@@ -73,13 +72,14 @@ const createSupabaseAuthHelpers = (options: SupabaseAuthHelperOptions) => {
    * @param req
    * @returns - Supabase Session from `@supabase/supabase-js`
    */
-  const getUnsafeSession = (req: Request): Session | null => {
+
+  public getUnsafeSession = (req: Request): Session | null => {
     const cookieHeader = req.headers.get('cookie');
     if (!cookieHeader) {
       return null;
     }
 
-    const session = decodeAuthCookie(parseCookies(cookieHeader));
+    const session = this.decodeAuthCookie(parseCookies(cookieHeader));
     return session;
   };
 
@@ -89,12 +89,15 @@ const createSupabaseAuthHelpers = (options: SupabaseAuthHelperOptions) => {
    * @param token
    * @returns A minimal user object from the JWT payload.
    */
-  const authenticateToken = async (token: string) => {
+
+  public authenticateToken = async (
+    token: string,
+  ): Promise<SupabaseTokenUser & JWTPayload> => {
     const { payload } = await jwtVerify<SupabaseTokenUser>(
       token,
-      new TextEncoder().encode(options.jwtSecret),
+      new TextEncoder().encode(this.options.jwtSecret),
       {
-        issuer: new URL('/auth/v1', options.supabaseUrl).toString(),
+        issuer: new URL('/auth/v1', this.options.supabaseUrl).toString(),
       },
     );
     payload.id = payload.sub ?? payload.id;
@@ -120,11 +123,12 @@ const createSupabaseAuthHelpers = (options: SupabaseAuthHelperOptions) => {
    *
    * ```
    */
-  const authenticateTokenSafely = async (
+
+  public authenticateTokenSafely = async (
     token: string,
   ): Promise<SafeResponse<SupabaseTokenUser & JWTPayload>> => {
     try {
-      const payload = await authenticateToken(token);
+      const payload = await this.authenticateToken(token);
       return { type: 'success', payload };
     } catch (error) {
       return { type: 'error', error };
@@ -136,27 +140,22 @@ const createSupabaseAuthHelpers = (options: SupabaseAuthHelperOptions) => {
    * @param req Request
    * @returns The token payload or null if the token is invalid.
    */
-  const getSession = async (req: Request) => {
-    const session = getUnsafeSession(req);
+
+  public getSession = async (
+    req: Request,
+  ): Promise<(SupabaseTokenUser & JWTPayload) | null> => {
+    const session = this.getUnsafeSession(req);
     if (!session) {
       return null;
     }
 
-    const result = await authenticateTokenSafely(session.access_token);
+    const result = await this.authenticateTokenSafely(session.access_token);
     if (result.type === 'error') {
       return null;
     }
 
     return result.payload;
   };
+}
 
-  return {
-    getSession,
-    getUnsafeSession,
-
-    authenticateToken,
-    authenticateTokenSafely,
-  };
-};
-
-export default createSupabaseAuthHelpers;
+export default SupabaseAuthHelper;
