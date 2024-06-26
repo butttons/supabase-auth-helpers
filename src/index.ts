@@ -6,6 +6,9 @@ import type {
 import { type JWTPayload, jwtVerify } from 'jose';
 import { parseCookies } from 'oslo/cookie';
 
+/**
+ * Options for the `SupabaseAuthHelper` class.
+ */
 type SupabaseAuthHelperOptions = {
   /**
    * The Supabase project ID
@@ -39,6 +42,24 @@ type SafeResponse<T> =
   | { type: 'success'; payload: T }
   | { type: 'error'; error: unknown };
 
+/**
+ * A helper utility to work with Supabase Auth.
+ * Provides methods to get the session, authenticate tokens, and get the user object from the token.
+ * @module
+ *
+ * @example
+ *
+ * ```ts
+ * const supabaseAuthHelper = new SupabaseAuthHelper({
+ *  supabaseId: 'your-supabase-id',
+ *  supabaseUrl: 'https://your-supabase-id.supabase.co',
+ *  jwtSecret: 'your-jwt-secret',
+ * });
+ *
+ * const session = await supabaseAuthHelper.getTokenPayload(req);
+ *
+ * ```
+ */
 class SupabaseAuthHelper {
   public options: SupabaseAuthHelperOptions;
 
@@ -46,6 +67,13 @@ class SupabaseAuthHelper {
     this.options = options;
   }
 
+  /**
+   * Decodes the Supabase auth cookie and returns the session object.
+   *
+   * This method is used internally to get the session object from the request.
+   * @param cookies {Map<string, string>}
+   * @returns Session or null if the cookie is not parsable.
+   */
   private decodeAuthCookie = (cookies: Map<string, string>): Session | null => {
     const supabaseCookie = Array.from(cookies.entries())
       .sort(([a, b]) => a[0].localeCompare(b[0]))
@@ -72,7 +100,6 @@ class SupabaseAuthHelper {
    * @param req
    * @returns - Supabase Session from `@supabase/supabase-js`
    */
-
   public getUnsafeSession = (req: Request): Session | null => {
     const cookieHeader = req.headers.get('cookie');
     if (!cookieHeader) {
@@ -89,7 +116,6 @@ class SupabaseAuthHelper {
    * @param token
    * @returns A minimal user object from the JWT payload.
    */
-
   public authenticateToken = async (
     token: string,
   ): Promise<SupabaseTokenUser & JWTPayload> => {
@@ -141,7 +167,7 @@ class SupabaseAuthHelper {
    * @returns The token payload or null if the token is invalid.
    */
 
-  public getSession = async (
+  public getTokenPayload = async (
     req: Request,
   ): Promise<(SupabaseTokenUser & JWTPayload) | null> => {
     const session = this.getUnsafeSession(req);
