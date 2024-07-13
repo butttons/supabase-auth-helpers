@@ -1,6 +1,6 @@
 {
   "name": "@butttons/supabase-auth-helpers",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "A utility to work with Supabase Auth",
   "main": "src/index.ts",
   "scripts": {
@@ -19,6 +19,7 @@
   "dependencies": {
     "debug": "^4.3.5",
     "jose": "^5.4.1",
-    "oslo": "^1.2.0"
+    "oslo": "^1.2.0",
+    "vitest": "^2.0.2"
   }
 }

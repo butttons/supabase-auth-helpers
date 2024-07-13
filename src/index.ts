@@ -7,7 +7,7 @@ import { type JWTPayload, jwtVerify } from 'jose';
 import { parseCookies } from 'oslo/cookie';
 import debugFactory from 'debug';
 
-const debug = debugFactory('@butttons/supabase-auth-helpers')
+const debug = debugFactory('@butttons/supabase-auth-helpers');
 
 /**
  * @module
@@ -95,7 +95,7 @@ export class SupabaseAuthHelper {
     try {
       return JSON.parse(supabaseCookie) as Session;
     } catch {
-      debug(`decodeAuthCookie(): Failed to parse cookie: %s.`)
+      debug(`decodeAuthCookie(): Failed to parse cookie: %s.`, supabaseCookie);
       return null;
     }
   };
@@ -111,7 +111,7 @@ export class SupabaseAuthHelper {
   public getUnsafeSession = (req: Request): Session | null => {
     const cookieHeader = req.headers.get('cookie');
     if (!cookieHeader) {
-      debug('getUnsafeSession(): Cookies not found')
+      debug('getUnsafeSession(): Cookies not found');
       return null;
     }
 
@@ -179,13 +179,13 @@ export class SupabaseAuthHelper {
   ): Promise<(SupabaseTokenUser & JWTPayload) | null> => {
     const session = this.getUnsafeSession(req);
     if (!session) {
-      debug('getTokenPayload(): Session not found in the request')
+      debug('getTokenPayload(): Session not found in the request');
       return null;
     }
 
     const result = await this.authenticateTokenSafely(session.access_token);
     if (result.type === 'error') {
-      debug('getTokenPayload(): Failed to parse token - %o', result.error)
+      debug('getTokenPayload(): Failed to parse token - %o', result.error);
       return null;
     }
 
