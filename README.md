@@ -2,6 +2,34 @@
 
 A collection of auth related helpers to be used with supabase auth.
 
+## Installation
+Published on jsr.io - https://jsr.io/@butttons/supabase-auth-helpers
+
+npm
+```
+npx jsr add @butttons/supabase-auth-helpers
+```
+
+pnpm
+```
+pnpm dlx jsr add @butttons/supabase-auth-helpers
+```
+
+yarn
+```
+yarn dlx jsr add @butttons/supabase-auth-helpers
+```
+
+deno
+```
+deno add @butttons/supabase-auth-helpers
+```
+
+bun
+```
+bunx jsr add @butttons/supabase-auth-helpers
+```
+
 ## Setup
 
 - Get your Supabase project ID at the [project settings page](https://supabase.com/dashboard/project/_/settings/general). Under _General settings_ > _Reference ID_.
@@ -86,8 +114,9 @@ export const updateProfile = async (input: UserProfile) => {
     });
   }
 
-  return Response.json(user);
+  // Update the user
 
+  return { user }
 }
 
 ```
