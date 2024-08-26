@@ -5,6 +5,7 @@ import type {
 } from "@supabase/supabase-js";
 import debugFactory from "debug";
 import { type JWTPayload, jwtVerify } from "jose";
+import type { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
 import { parseCookies } from "oslo/cookie";
 
 const debug = debugFactory("@butttons/supabase-auth-helpers");
@@ -20,7 +21,11 @@ const debug = debugFactory("@butttons/supabase-auth-helpers");
  */
 export type SupabaseAuthHelperOptions = {
 	/**
-	 * The Supabase project ID
+	 * The Supabase project ID. This is used to identify the the supabase cookies in the request.
+	 * If you are using custom domains, this should be the subdomain. For example,
+	 * if your custom domain is `auth.example.com`, the `supabaseId` should be `auth`.
+	 *
+	 * You can find out the cookie name by looking at the cookies in the browser. The cookie name should be in the format `sb-[SUPABASE_ID]-auth-token.[NUMBER]`.
 	 */
 	supabaseId: string;
 	/**
@@ -64,7 +69,7 @@ type SafeResponse<T> =
  *  jwtSecret: 'your-jwt-secret',
  * });
  *
- * const session = await supabaseAuthHelper.getTokenPayload(req);
+ * const session = await supabaseAuthHelper.getUserFromRequest(req);
  *
  * ```
  */
@@ -85,12 +90,11 @@ export class SupabaseAuthHelper {
 	private decodeAuthCookie = (cookies: Map<string, string>): Session | null => {
 		const supabaseCookie = Array.from(cookies.entries())
 			.sort(([a, b]) => a[0].localeCompare(b[0]))
-			.reduce((acc, [name, value]) => {
-				if (name.includes(`${this.options.supabaseId}-auth-token`)) {
-					acc += value;
-				}
-				return acc;
-			}, "");
+			.filter(([name, value]) =>
+				name.includes(`${this.options.supabaseId}-auth-token`),
+			)
+			.map(([name, value]) => value)
+			.join("");
 
 		try {
 			return JSON.parse(supabaseCookie) as Session;
@@ -104,7 +108,7 @@ export class SupabaseAuthHelper {
 	 * Returns the session object from the request. Similar to `supabase.auth.getSession()`.
 	 * The data returned here should be treated as untrusted.
 	 *
-	 * Use the `getTokenPayload(req)` method to get the validated payload.
+	 * Use the `getUserFromRequest(req)` method to get the validated payload.
 	 * @param req
 	 * @returns - Supabase Session from `@supabase/supabase-js`
 	 */
@@ -174,21 +178,64 @@ export class SupabaseAuthHelper {
 	 * @param req Request
 	 * @returns The token payload or null if the token is invalid.
 	 */
-	public getTokenPayload = async (
+	public getUserFromRequest = async (
 		req: Request,
 	): Promise<(SupabaseTokenUser & JWTPayload) | null> => {
 		const session = this.getUnsafeSession(req);
 		if (!session) {
-			debug("getTokenPayload(): Session not found in the request");
+			debug("getUserFromRequest(): Session not found in the request");
 			return null;
 		}
 
 		const result = await this.authenticateTokenSafely(session.access_token);
 		if (result.type === "error") {
-			debug("getTokenPayload(): Failed to parse token - %o", result.error);
+			debug("getUserFromRequest(): Failed to parse token - %o", result.error);
 			return null;
 		}
 
 		return result.payload;
+	};
+
+	/**
+	 * Gets the minimal user object from the cookies.
+	 * This is useful when working with next.js server actions.
+	 * @param cookieStore
+	 * @returns The token payload or null if the token is invalid.
+	 */
+	public getUserFromCookies = async (
+		cookieStore: ReadonlyRequestCookies,
+	): Promise<(SupabaseTokenUser & JWTPayload) | null> => {
+		const cookieMap = cookieStore
+			.getAll()
+			.reduce<Map<string, string>>((acc, ck) => {
+				acc.set(ck.name, ck.value);
+				return acc;
+			}, new Map());
+		const session = this.decodeAuthCookie(cookieMap);
+		if (!session) {
+			debug("getUserFromCookies(): Session not found in the cookies");
+			return null;
+		}
+
+		const result = await this.authenticateTokenSafely(session.access_token);
+		if (result.type === "error") {
+			debug("getUserFromCookies(): Failed to parse token - %o", result.error);
+			return null;
+		}
+
+		return result.payload;
+	};
+
+	/**
+	 * Gets the user object from the request or cookies.
+	 * @returns The token payload or null if the token is invalid.
+	 */
+	public getUser = async (
+		reqOrCookie: Request | ReadonlyRequestCookies,
+	): Promise<(SupabaseTokenUser & JWTPayload) | null> => {
+		if (reqOrCookie instanceof Request) {
+			return this.getUserFromRequest(reqOrCookie);
+		}
+		return this.getUserFromCookies(reqOrCookie);
 	};
 }
