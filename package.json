@@ -1,6 +1,6 @@
 {
   "name": "@butttons/supabase-auth-helpers",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A utility to work with Supabase Auth",
   "main": "src/index.ts",
   "scripts": {
@@ -8,18 +8,23 @@
   },
   "keywords": [
     "supabase",
-    "supabase-auth"
+    "supabase-auth",
+    "nextjs"
   ],
   "author": "butttons",
   "license": "MIT",
   "devDependencies": {
-    "@supabase/supabase-js": "^2.44.0",
+    "@supabase/supabase-js": "2.44.0",
     "@types/debug": "^4.1.12",
     "debug": "^4.3.6",
-    "next": "^14.2.6"
+    "next": "14.2.6"
   },
   "dependencies": {
     "jose": "^5.4.1",
     "oslo": "^1.2.0"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": "2.44.0",
+    "next": "14.2.6"
   }
 }

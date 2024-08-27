@@ -5,10 +5,11 @@ import type {
 } from "@supabase/supabase-js";
 import debugFactory from "debug";
 import { type JWTPayload, jwtVerify } from "jose";
-import type { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
+import type { cookies } from "next/headers";
 import { parseCookies } from "oslo/cookie";
 
 const debug = debugFactory("@butttons/supabase-auth-helpers");
+type ReadonlyRequestCookies = ReturnType<typeof cookies>;
 
 /**
  * @module
