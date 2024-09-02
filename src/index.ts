@@ -90,13 +90,13 @@ export class SupabaseAuthHelper {
 	 */
 	private decodeAuthCookie = (cookies: Map<string, string>): Session | null => {
 		const supabaseCookie = Array.from(cookies.entries())
-			.sort(([a, b]) => a[0].localeCompare(b[0]))
 			.filter(
-				([name, value]) =>
+				([name]) =>
 					name.includes(`${this.options.supabaseId}-auth-token`) &&
 					!name.includes("auth-token-code-verifier"),
 			)
-			.map(([name, value]) => value)
+			.sort((cookieA, cookieB) => cookieA[0].localeCompare(cookieB[0]))
+			.map(([, value]) => value)
 			.join("");
 
 		try {

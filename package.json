@@ -1,6 +1,6 @@
 {
   "name": "@butttons/supabase-auth-helpers",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "A utility to work with Supabase Auth",
   "main": "src/index.ts",
   "scripts": {
