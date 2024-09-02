@@ -7,13 +7,14 @@ import debugFactory from 'debug';
 import { type JWTPayload, jwtVerify } from 'jose';
 import type { cookies } from 'next/headers';
 import { parseCookies } from 'oslo/cookie';
+import { SupabaseAuthError, SupabaseAuthErrorCode } from './errors';
 
 const debug = debugFactory('@butttons/supabase-auth-helpers');
-type ReadonlyRequestCookies = ReturnType<typeof cookies>;
+export type ReadonlyRequestCookies = ReturnType<typeof cookies>;
 
 /**
  * @module
- * @name @butttons/supabase-auth-helper
+ * @name @butttons/supabase-auth-helpers
  * @description A utility to work with Supabase Auth.
  */
 
@@ -109,8 +110,12 @@ export class SupabaseAuthHelper {
 
     try {
       return JSON.parse(supabaseCookie) as Session;
-    } catch {
-      debug('decodeAuthCookie(): Failed to parse cookie: %s.', supabaseCookie);
+    } catch (error) {
+      debug(
+        'decodeAuthCookie(): Failed to parse cookie: %s. Error: %o',
+        supabaseCookie,
+        error,
+      );
       return null;
     }
   };
@@ -127,11 +132,30 @@ export class SupabaseAuthHelper {
     const cookieHeader = req.headers.get('cookie');
     if (!cookieHeader) {
       debug('getUnsafeSession(): Cookies not found');
-      return null;
+      throw new SupabaseAuthError(
+        SupabaseAuthErrorCode.NO_COOKIE,
+        'No cookies found',
+      );
     }
 
-    const session = this.decodeAuthCookie(parseCookies(cookieHeader));
-    return session;
+    try {
+      const cookies = this.decodeAuthCookie(parseCookies(cookieHeader));
+      if (!cookies) {
+        throw new SupabaseAuthError(
+          SupabaseAuthErrorCode.INVALID_COOKIE,
+          'Invalid auth cookie',
+        );
+      }
+      return cookies;
+    } catch (error) {
+      if (error instanceof SupabaseAuthError) {
+        throw error;
+      }
+      throw new SupabaseAuthError(
+        SupabaseAuthErrorCode.INVALID_COOKIE,
+        'Invalid auth cookie',
+      );
+    }
   };
 
   /**
@@ -143,15 +167,53 @@ export class SupabaseAuthHelper {
   public authenticateToken = async (
     token: string,
   ): Promise<SupabaseTokenUser & JWTPayload> => {
-    const { payload } = await jwtVerify<SupabaseTokenUser>(
-      token,
-      new TextEncoder().encode(this.options.jwtSecret),
-      {
-        issuer: new URL('/auth/v1', this.options.supabaseUrl).toString(),
-      },
-    );
-    payload.id = payload.sub ?? payload.id;
-    return payload;
+    try {
+      const { payload } = await jwtVerify<SupabaseTokenUser>(
+        token,
+        new TextEncoder().encode(this.options.jwtSecret),
+        {
+          issuer: new URL('/auth/v1', this.options.supabaseUrl).toString(),
+        },
+      );
+      payload.id = payload.sub ?? payload.id;
+      return payload;
+    } catch (error) {
+      if (error instanceof Error) {
+        switch (error.name) {
+          case 'JWTExpired':
+            throw new SupabaseAuthError(
+              SupabaseAuthErrorCode.TOKEN_EXPIRED,
+              'Token has expired',
+            );
+          case 'JWSSignatureVerificationFailed':
+            throw new SupabaseAuthError(
+              SupabaseAuthErrorCode.TOKEN_INVALID_SIGNATURE,
+              'Invalid token signature',
+            );
+          case 'JWTClaimValidationFailed':
+            if (error.message.includes('iss')) {
+              throw new SupabaseAuthError(
+                SupabaseAuthErrorCode.TOKEN_INVALID_ISSUER,
+                'Invalid token issuer',
+              );
+            } else {
+              throw new SupabaseAuthError(
+                SupabaseAuthErrorCode.TOKEN_INVALID_CLAIMS,
+                'Invalid token claims',
+              );
+            }
+          default:
+            throw new SupabaseAuthError(
+              SupabaseAuthErrorCode.TOKEN_VERIFICATION_FAILED,
+              'Token verification failed',
+            );
+        }
+      }
+      throw new SupabaseAuthError(
+        SupabaseAuthErrorCode.UNKNOWN_ERROR,
+        'An unknown error occurred during token verification',
+      );
+    }
   };
 
   /**
@@ -184,11 +246,69 @@ export class SupabaseAuthHelper {
     }
   };
 
-  /**
-   * Gets the minimal user object from the request.
-   * @param req Request
-   * @returns The token payload or null if the token is invalid.
-   */
+  public getUserWithError = async (
+    reqOrCookie: Request | ReadonlyRequestCookies,
+  ): Promise<SupabaseTokenUser & JWTPayload> => {
+    try {
+      let session: Session | null;
+
+      if (reqOrCookie instanceof Request) {
+        session = this.getUnsafeSession(reqOrCookie);
+      } else {
+        const cookieMap = this.cookieStoreToMap(reqOrCookie);
+        session = this.decodeAuthCookie(cookieMap);
+        if (!session) {
+          throw new SupabaseAuthError(
+            SupabaseAuthErrorCode.INVALID_COOKIE,
+            'Invalid auth cookie',
+          );
+        }
+      }
+
+      if (!session) {
+        throw new SupabaseAuthError(
+          SupabaseAuthErrorCode.SESSION_MISSING,
+          'No valid session found',
+        );
+      }
+
+      if (!session.access_token) {
+        throw new SupabaseAuthError(
+          SupabaseAuthErrorCode.SESSION_INVALID,
+          'Invalid session: missing access token',
+        );
+      }
+
+      const user = await this.authenticateToken(session.access_token);
+
+      if (!user) {
+        throw new SupabaseAuthError(
+          SupabaseAuthErrorCode.USER_NOT_FOUND,
+          'User not found in token payload',
+        );
+      }
+
+      return user;
+    } catch (error) {
+      if (error instanceof SupabaseAuthError) {
+        throw error;
+      }
+      throw new SupabaseAuthError(
+        SupabaseAuthErrorCode.UNKNOWN_ERROR,
+        'An unknown error occurred',
+      );
+    }
+  };
+
+  private cookieStoreToMap(
+    cookieStore: ReadonlyRequestCookies,
+  ): Map<string, string> {
+    return cookieStore.getAll().reduce<Map<string, string>>((acc, ck) => {
+      acc.set(ck.name, ck.value);
+      return acc;
+    }, new Map());
+  }
+
   public getUserFromRequest = async (
     req: Request,
   ): Promise<(SupabaseTokenUser & JWTPayload) | null> => {
@@ -237,10 +357,6 @@ export class SupabaseAuthHelper {
     return result.payload;
   };
 
-  /**
-   * Gets the user object from the request or cookies.
-   * @returns The token payload or null if the token is invalid.
-   */
   public getUser = async (
     reqOrCookie: Request | ReadonlyRequestCookies,
   ): Promise<(SupabaseTokenUser & JWTPayload) | null> => {
@@ -248,5 +364,32 @@ export class SupabaseAuthHelper {
       return this.getUserFromRequest(reqOrCookie);
     }
     return this.getUserFromCookies(reqOrCookie);
+  };
+
+  /**
+   * Safely gets the user object from the request or cookies.
+   * Returns a SafeResponse object containing either the user data or an error.
+   *
+   * @param reqOrCookie - The request object or ReadonlyRequestCookies
+   * @returns A SafeResponse with the user data or an error
+   */
+  public getUserSafely = async (
+    reqOrCookie: Request | ReadonlyRequestCookies,
+  ): Promise<SafeResponse<SupabaseTokenUser & JWTPayload>> => {
+    try {
+      const user = await this.getUserWithError(reqOrCookie);
+      return { type: 'success', payload: user };
+    } catch (error) {
+      if (error instanceof SupabaseAuthError) {
+        return { type: 'error', error };
+      }
+      return {
+        type: 'error',
+        error: new SupabaseAuthError(
+          SupabaseAuthErrorCode.UNKNOWN_ERROR,
+          'An unknown error occurred',
+        ),
+      };
+    }
   };
 }
