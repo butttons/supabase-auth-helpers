@@ -1,10 +1,11 @@
 {
   "name": "@butttons/supabase-auth-helpers",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "A utility to work with Supabase Auth",
   "main": "src/index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest",
+    "sandbox": "DEBUG=@butttons/supabase-auth-helpers tsx src/sandbox.ts"
   },
   "keywords": [
     "supabase",
@@ -21,7 +22,8 @@
   },
   "dependencies": {
     "jose": "^5.4.1",
-    "oslo": "^1.2.0"
+    "oslo": "^1.2.0",
+    "vitest": "^2.0.5"
   },
   "peerDependencies": {
     "@supabase/supabase-js": "2.44.0",
