@@ -32,11 +32,18 @@ bunx jsr add @butttons/supabase-auth-helpers
 
 ## Setup
 
+### Frontend
+- Set up your project to use the PCKE auth flow - https://supabase.com/docs/guides/auth/sessions/pkce-flow. This will set the appropriate cookies when making requests.
+- Alternatively, you can pass in the `access_token` from the `Session` object as a `Authorization: 
+
+### Backend
 - Get your Supabase project ID at the [project settings page](https://supabase.com/dashboard/project/_/settings/general). Under _General settings_ > _Reference ID_.
   - If you are using custom domains, this should be the subdomain. For example, if your custom domain is `auth.example.com`, the `supabaseId` should be `auth`. You can find out supabase ID by looking at the cookies in the browser. The cookie name should be in the format `sb-[SUPABASE_ID]-auth-token.[NUMBER]`.
   - On localhost, this ID is typically `127`.
 - Get your JWT secret at [configuration page](https://supabase.com/dashboard/project/_/settings/api). Under _JWT Settings_ > _JWT Secret_.
 - Get the supabase project URL as well on the configuration page. Under _Project URL_ > _URL_.
+
+
 
 ## Usage
 - Set up the auth helper somewhere in your application:
