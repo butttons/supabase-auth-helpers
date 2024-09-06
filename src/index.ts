@@ -109,7 +109,11 @@ export class SupabaseAuthHelper {
       singleCookie?.[1] ?? compositeCookies.map(([, value]) => value).join('');
 
     try {
-      return JSON.parse(supabaseCookie) as Session;
+      const decodedCookie = supabaseCookie.startsWith('base64-')
+        ? atob(supabaseCookie.slice(7))
+        : supabaseCookie;
+
+      return JSON.parse(decodedCookie) as Session;
     } catch (error) {
       debug(
         'decodeAuthCookie(): Failed to parse cookie: %s. Error: %o',
@@ -246,40 +250,52 @@ export class SupabaseAuthHelper {
     }
   };
 
+  /**
+   * Gets the user object from the request or cookies. Throws an error if the user is not found.
+   * @param reqOrCookie
+   * @returns The user object.
+   */
   public getUserWithError = async (
     reqOrCookie: Request | ReadonlyRequestCookies,
   ): Promise<SupabaseTokenUser & JWTPayload> => {
     try {
       let session: Session | null;
+      let token: string | null = null;
 
       if (reqOrCookie instanceof Request) {
-        session = this.getUnsafeSession(reqOrCookie);
+        // Try to get token from cookies
+        try {
+          session = this.getUnsafeSession(reqOrCookie);
+          if (session && session.access_token) {
+            token = session.access_token;
+          }
+        } catch (error) {
+          debug('getUserWithError(): No valid session in cookies');
+        }
+
+        // If no token in cookies, check Authorization header
+        if (!token) {
+          const authHeader = reqOrCookie.headers.get('Authorization');
+          if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.slice(7);
+          }
+        }
       } else {
         const cookieMap = this.cookieStoreToMap(reqOrCookie);
         session = this.decodeAuthCookie(cookieMap);
-        if (!session) {
-          throw new SupabaseAuthError(
-            SupabaseAuthErrorCode.INVALID_COOKIE,
-            'Invalid auth cookie',
-          );
+        if (session && session.access_token) {
+          token = session.access_token;
         }
       }
 
-      if (!session) {
+      if (!token) {
         throw new SupabaseAuthError(
           SupabaseAuthErrorCode.SESSION_MISSING,
-          'No valid session found',
+          'No valid session or token found',
         );
       }
 
-      if (!session.access_token) {
-        throw new SupabaseAuthError(
-          SupabaseAuthErrorCode.SESSION_INVALID,
-          'Invalid session: missing access token',
-        );
-      }
-
-      const user = await this.authenticateToken(session.access_token);
+      const user = await this.authenticateToken(token);
 
       if (!user) {
         throw new SupabaseAuthError(
@@ -300,6 +316,11 @@ export class SupabaseAuthHelper {
     }
   };
 
+  /**
+   * Converts the cookie store to a map.
+   * @param cookieStore
+   * @returns A map of the cookies.
+   */
   private cookieStoreToMap(
     cookieStore: ReadonlyRequestCookies,
   ): Map<string, string> {
@@ -309,16 +330,42 @@ export class SupabaseAuthHelper {
     }, new Map());
   }
 
+  /**
+   * Gets the user object from the request.
+   * @param req
+   * @returns The user object or null if the user is not found.
+   */
   public getUserFromRequest = async (
     req: Request,
   ): Promise<(SupabaseTokenUser & JWTPayload) | null> => {
-    const session = this.getUnsafeSession(req);
-    if (!session) {
-      debug('getUserFromRequest(): Session not found in the request');
+    let token: string | null = null;
+
+    // Try to get token from cookies
+    try {
+      const session = this.getUnsafeSession(req);
+      if (session && session.access_token) {
+        token = session.access_token;
+      }
+    } catch (error) {
+      debug('getUserFromRequest(): No valid session in cookies');
+    }
+
+    // If no token in cookies, check Authorization header
+    if (!token) {
+      const authHeader = req.headers.get('Authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.slice(7);
+      }
+    }
+
+    if (!token) {
+      debug(
+        'getUserFromRequest(): No token found in cookies or Authorization header',
+      );
       return null;
     }
 
-    const result = await this.authenticateTokenSafely(session.access_token);
+    const result = await this.authenticateTokenSafely(token);
     if (result.type === 'error') {
       debug('getUserFromRequest(): Failed to parse token - %o', result.error);
       return null;
@@ -357,6 +404,11 @@ export class SupabaseAuthHelper {
     return result.payload;
   };
 
+  /**
+   * Gets the user object from the request or cookies.
+   * @param reqOrCookie
+   * @returns The user object or null if the user is not found.
+   */
   public getUser = async (
     reqOrCookie: Request | ReadonlyRequestCookies,
   ): Promise<(SupabaseTokenUser & JWTPayload) | null> => {
@@ -367,7 +419,7 @@ export class SupabaseAuthHelper {
   };
 
   /**
-   * Safely gets the user object from the request or cookies.
+   * Gets the user object from the request or cookies.
    * Returns a SafeResponse object containing either the user data or an error.
    *
    * @param reqOrCookie - The request object or ReadonlyRequestCookies
