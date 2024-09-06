@@ -1,6 +1,6 @@
 {
   "name": "@butttons/supabase-auth-helpers",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "exports": "./src/index.ts",
   "publish": {
     "include": ["LICENSE.md", "README.md", "src/**/*.ts", "package.json"]

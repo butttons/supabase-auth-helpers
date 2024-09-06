@@ -1,6 +1,8 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+
+import { stringToBase64URL } from '@supabase/ssr';
 import type { Session } from '@supabase/supabase-js';
 import { SignJWT } from 'jose';
-import { beforeEach, describe, expect, it } from 'vitest';
 
 import { SupabaseAuthError, SupabaseAuthErrorCode } from './errors';
 import {
@@ -76,7 +78,7 @@ describe('SupabaseAuthHelper', () => {
         },
       };
 
-      const base64Session = btoa(JSON.stringify(session));
+      const base64Session = stringToBase64URL(JSON.stringify(session));
       const cookies = new Map<string, string>([
         [`sb-${options.supabaseId}-auth-token`, `base64-${base64Session}`],
       ]);

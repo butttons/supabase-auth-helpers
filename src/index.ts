@@ -1,3 +1,4 @@
+import { stringFromBase64URL } from '@supabase/ssr';
 import type {
   Session,
   UserAppMetadata,
@@ -110,7 +111,7 @@ export class SupabaseAuthHelper {
 
     try {
       const decodedCookie = supabaseCookie.startsWith('base64-')
-        ? atob(supabaseCookie.slice(7))
+        ? stringFromBase64URL(supabaseCookie.slice(7))
         : supabaseCookie;
 
       return JSON.parse(decodedCookie) as Session;
@@ -273,7 +274,6 @@ export class SupabaseAuthHelper {
           debug('getUserWithError(): No valid session in cookies');
         }
 
-        // If no token in cookies, check Authorization header
         if (!token) {
           const authHeader = reqOrCookie.headers.get('Authorization');
           if (authHeader && authHeader.startsWith('Bearer ')) {
