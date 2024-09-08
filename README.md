@@ -34,7 +34,7 @@ bunx jsr add @butttons/supabase-auth-helpers
 
 ### Frontend
 - Set up your project to use the PCKE auth flow - https://supabase.com/docs/guides/auth/sessions/pkce-flow. This will set the appropriate cookies when making requests.
-- Alternatively, you can pass in the `access_token` from the `Session` object as a `Authorization: 
+- Alternatively, you can pass in the `access_token` from the `Session` object as a `Authorization: Bearer ${access_token}` header.
 
 ### Backend
 - Get your Supabase project ID at the [project settings page](https://supabase.com/dashboard/project/_/settings/general). Under _General settings_ > _Reference ID_.
